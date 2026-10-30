@@ -1,0 +1,40 @@
+name: Feed Cris&Cia OpenAI Ads
+
+on:
+  schedule:
+    - cron: "0 8 * * *"   # todo dia 05h de Brasília
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Converter XML da Wake em CSV
+        run: |
+          mkdir -p public
+          python3 -I converte-feed-openai.py "https://download-xml.fbits.net/Crisecia-184.xml" public/crisecia-openai.csv
+          linhas=$(python3 -c "import csv;print(sum(1 for _ in csv.reader(open('public/crisecia-openai.csv',encoding='utf-8')))-1)")
+          echo "Linhas no feed: $linhas"
+          if [ "$linhas" -lt 5000 ]; then echo "Feed com menos de 5000 produtos, não publica"; exit 1; fi
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
