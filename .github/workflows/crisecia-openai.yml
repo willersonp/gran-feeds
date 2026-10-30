@@ -26,6 +26,12 @@ jobs:
           linhas=$(python3 -c "import csv;print(sum(1 for _ in csv.reader(open('public/crisecia-openai.csv',encoding='utf-8')))-1)")
           echo "Linhas no feed: $linhas"
           if [ "$linhas" -lt 5000 ]; then echo "Feed com menos de 5000 produtos, não publica"; exit 1; fi
+      - name: Limpar XML da Wake para o Google Merchant
+        run: |
+          python3 -I limpa-feed-google.py "https://download-xml.fbits.net/Crisecia-185.xml" public/crisecia-google.xml
+          itens=$(grep -c "<item>" public/crisecia-google.xml)
+          echo "Itens no feed do Google: $itens"
+          if [ "$itens" -lt 5000 ]; then echo "Feed do Google com menos de 5000 produtos, não publica"; exit 1; fi
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public
