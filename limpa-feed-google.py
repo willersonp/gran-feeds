@@ -6,6 +6,7 @@ Corrige o que o cadastro da Wake manda fora do padrão do Google:
 - g:age_group só adult / kids (cadastro tem "infantil", "Adulto", "adult " com espaço...)
 - g:google_product_category pelo ID oficial da taxonomia, a partir do título e da categoria
 - g:sale_price só quando é menor que g:price
+- etiquetas para as campanhas: custom_label_0 = categoria GRAN, custom_label_1 = faixa de preço, custom_label_2 = promo
 Uso: python3 limpa-feed-google.py <xml ou url> <saida.xml>
 """
 import sys, io, gzip, re, urllib.request, collections, xml.etree.ElementTree as ET
@@ -31,6 +32,18 @@ CATEGORIA = {
     'shorts': 207, 'bermuda': 207, 'saia': 1581, 'vestido': 2271,
 }
 SELARIA = 5593  # Artigos esportivos > Atividades ao ar livre > Esportes equestres > Equipamentos para cavalos
+
+# custom_label_0: categoria GRAN (usada nos filtros das PMax), pela primeira palavra do título
+GRUPO = {187: 'botas', 173: 'chapeus', 169: 'cintos', 167: 'acessorios', 178: 'acessorios',
+         204: 'calcas', 212: 'camisas', 5598: 'jaquetas', 207: 'shorts', 1581: 'saias', 2271: 'vestidos',
+         SELARIA: 'selaria'}
+FAIXAS = [(200, 'ate-199'), (400, '200-399'), (700, '400-699'), (1000, '700-999')]
+
+def faixa(preco):
+    for teto, nome in FAIXAS:
+        if preco < teto:
+            return nome
+    return '1000-mais'
 
 def abrir(src):
     if src.startswith('http'):
@@ -86,10 +99,20 @@ for item in list(canal.findall('item')):
     definir(item, 'google_product_category', str(cat) if cat else '')
     stats['com_categoria'] += bool(cat)
 
-    if numero(valor(item, 'sale_price')) >= numero(valor(item, 'price')):
+    preco_final = numero(valor(item, 'price'))
+    promo_valor = numero(valor(item, 'sale_price'))
+    if not promo_valor or promo_valor >= preco_final:
         definir(item, 'sale_price', '')
+        promo = ''
     else:
+        preco_final = numero(valor(item, 'sale_price'))
+        promo = 'promo'
         stats['promo'] += 1
+    grupo = 'bones' if titulo.split(' ')[0].lower() in ('boné', 'gorro') else GRUPO.get(cat, 'outros')
+    definir(item, 'custom_label_0', grupo)
+    definir(item, 'custom_label_1', faixa(preco_final))
+    definir(item, 'custom_label_2', promo)
+    stats['grupo_' + grupo] += 1
     for tag in ('color', 'size', 'material', 'brand', 'product_type'):
         definir(item, tag, valor(item, tag))
     stats['itens'] += 1
