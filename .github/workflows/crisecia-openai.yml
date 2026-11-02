@@ -2,7 +2,8 @@ name: Feed Cris&Cia OpenAI Ads
 
 on:
   schedule:
-    - cron: "0 8 * * *"   # todo dia 05h de Brasília
+    - cron: "37 3 * * *"   # 00h37 de Brasília (fora da hora cheia; o GitHub atrasa até horas)
+    - cron: "37 15 * * *"  # 12h37 de Brasília, 2ª atualização do dia
   workflow_dispatch:
 
 permissions:
