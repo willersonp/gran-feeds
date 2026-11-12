@@ -7,7 +7,10 @@ Corrige o que o cadastro da Wake manda fora do padrão do Google:
 - g:google_product_category pelo ID oficial da taxonomia, a partir do título e da categoria
 - g:sale_price só quando é menor que g:price
 - etiquetas para as campanhas: custom_label_0 = categoria GRAN, custom_label_1 = faixa de preço, custom_label_2 = promo
-Uso: python3 limpa-feed-google.py <xml ou url> <saida.xml>
+- preço do Pix (desde 2026-11-12, decisão do Will): se passar o 3º argumento (XML 184 da Wake, que traz o
+  preço do Pix em <sale_price>), o g:sale_price vira o preço do Pix quando ele é menor. custom_label_2 = promo
+  continua marcando só promoção de verdade (a do 185), não o desconto do Pix.
+Uso: python3 limpa-feed-google.py <xml ou url> <saida.xml> [xml-com-pix ou url]
 """
 import sys, io, gzip, re, urllib.request, collections, xml.etree.ElementTree as ET
 
@@ -72,6 +75,22 @@ def numero(preco):
     except (ValueError, IndexError):
         return 0.0
 
+def precos_pix(src):
+    """Lê o XML 184 (sem namespace: item_id, price, sale_price) e devolve {id: preço do Pix}."""
+    pix = {}
+    for _, el in ET.iterparse(abrir(src)):
+        if el.tag == 'item':
+            pid = (el.findtext('item_id') or '').strip()
+            venda = numero((el.findtext('sale_price') or '').strip())
+            if pid and venda:
+                pix[pid] = venda
+            el.clear()
+    return pix
+
+PIX = precos_pix(sys.argv[3]) if len(sys.argv) > 3 else {}
+if len(sys.argv) > 3 and len(PIX) < 5000:
+    sys.exit('Feed do Pix com menos de 5000 preços, não publica')
+
 arvore = ET.parse(abrir(sys.argv[1]))
 canal = arvore.getroot().find('channel')
 stats = collections.Counter()
@@ -108,6 +127,12 @@ for item in list(canal.findall('item')):
         preco_final = numero(valor(item, 'sale_price'))
         promo = 'promo'
         stats['promo'] += 1
+    pix = PIX.get(valor(item, 'id'))
+    if pix and pix < preco_final and pix < numero(valor(item, 'price')):
+        definir(item, 'sale_price', '%.2f BRL' % pix)  # custom_label_1 segue pelo preço sem Pix (grupos das PMax não mudam)
+        stats['com_pix'] += 1
+    elif PIX:
+        stats['sem_pix'] += 1
     grupo = 'bones' if titulo.split(' ')[0].lower() in ('boné', 'gorro') else GRUPO.get(cat, 'outros')
     definir(item, 'custom_label_0', grupo)
     definir(item, 'custom_label_1', faixa(preco_final))
