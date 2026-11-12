@@ -29,7 +29,7 @@ jobs:
           if [ "$linhas" -lt 5000 ]; then echo "Feed com menos de 5000 produtos, não publica"; exit 1; fi
       - name: Limpar XML da Wake para o Google Merchant
         run: |
-          python3 -I limpa-feed-google.py "https://download-xml.fbits.net/Crisecia-185.xml" public/crisecia-google.xml
+          python3 -I limpa-feed-google.py "https://download-xml.fbits.net/Crisecia-185.xml" public/crisecia-google.xml "https://download-xml.fbits.net/Crisecia-184.xml"
           itens=$(grep -c "<item>" public/crisecia-google.xml)
           echo "Itens no feed do Google: $itens"
           if [ "$itens" -lt 5000 ]; then echo "Feed do Google com menos de 5000 produtos, não publica"; exit 1; fi
